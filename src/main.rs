@@ -6,7 +6,6 @@ use std::process;
 use serde::Deserialize;
 
 // TODO: Organize code in files
-// TODO: Add all record types to transasctions.csv
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,13 +33,12 @@ struct TransactionRecord {
 fn run() -> Result<(), Box<dyn Error>> {
     let file_path = get_first_arg()?;
     let file = File::open(file_path)?;
-    // let mut rdr = csv::Reader::from_reader(file);
     let mut rdr = csv::ReaderBuilder::new()
-    .trim(csv::Trim::All).from_reader(file);
-    for result in rdr.deserialize() {
-        let record: TransactionRecord = result?;
-        println!("{:#?}", record);
-    }
+        .trim(csv::Trim::All) 
+        .from_reader(file);
+    rdr
+        .deserialize()
+        .for_each(parse_record_result);
     Ok(())
 }
 
@@ -51,6 +49,10 @@ fn get_first_arg() -> Result<OsString, Box<dyn Error>> {
         None => Err(From::from("expected 1 argument, but got none")),
         Some(file_path) => Ok(file_path),
     }
+}
+
+fn parse_record_result(r: Result<TransactionRecord, csv::Error>) {
+    println!("{:#?}", r);
 }
 
 fn main() {
