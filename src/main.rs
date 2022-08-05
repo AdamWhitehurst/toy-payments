@@ -1,9 +1,10 @@
+use serde::Deserialize;
+use std::collections::HashMap;
 use std::env;
 use std::error::Error;
 use std::ffi::OsString;
 use std::fs::File;
 use std::process;
-use serde::Deserialize;
 
 // TODO: Organize code in files
 
@@ -30,16 +31,49 @@ struct TransactionRecord {
     amount: Option<f32>,
 }
 
+#[derive(Debug, Deserialize)]
+struct Account {
+    id: u16,
+    available: f32,
+    held: f32,
+    total: f32,
+    locked: bool,
+}
+
+// MAYBE: Generic over type of account?
+struct Ledger {
+    /// Maps between client ID's and their corresponding accounts
+    accounts: HashMap<u16, Account>,
+}
+
+impl Ledger {
+    fn new() -> Self {
+        Ledger {
+            accounts: HashMap::new(),
+        }
+    }
+    fn fold_transaction(mut self, r: TransactionRecord) -> Self {
+        println!("{:#?}", r);
+        self
+    }
+}
+
 fn run() -> Result<(), Box<dyn Error>> {
     let file_path = get_first_arg()?;
     let file = File::open(file_path)?;
     let mut rdr = csv::ReaderBuilder::new()
-        .trim(csv::Trim::All) 
+        .trim(csv::Trim::All)
         .from_reader(file);
-    rdr
+    let ldgr = rdr
         .deserialize()
-        .for_each(parse_result);
+        .filter_map(into_tx)
+        .fold(Ledger::new(), |acc, r| acc.fold_transaction(r));
     Ok(())
+}
+
+fn into_tx(r: Result<TransactionRecord, csv::Error>) -> Option<TransactionRecord> {
+    // Error handling could happen here
+    r.ok()
 }
 
 /// Returns the first positional argument sent to this process. If there are no
@@ -49,19 +83,6 @@ fn get_first_arg() -> Result<OsString, Box<dyn Error>> {
         None => Err(From::from("expected 1 argument, but got none")),
         Some(file_path) => Ok(file_path),
     }
-}
-
-fn parse_result(r: Result<TransactionRecord, csv::Error>) {
-    match r {
-        Ok(tx_r) => parse_record(tx_r),
-        Err(_) => {
-            // Error handling would happen here
-        }
-    }
-}
-
-fn parse_record(r: TransactionRecord) {
-    println!("{:#?}", r);
 }
 
 fn main() {
