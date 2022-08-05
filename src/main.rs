@@ -7,6 +7,7 @@ use std::fs::File;
 use std::process;
 
 // TODO: Organize code in files
+// TODO: Check for valid `amount`s
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,13 +32,22 @@ struct TransactionRecord {
     amount: Option<f32>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 struct Account {
     id: u16,
     available: f32,
     held: f32,
     total: f32,
     locked: bool,
+}
+
+impl Account {
+    fn new(id: u16) -> Self {
+        Account {
+            id,
+            ..Default::default()
+        }
+    }
 }
 
 // MAYBE: Generic over type of account?
@@ -57,13 +67,14 @@ impl Ledger {
     }
     fn parse_transaction(&mut self, r: TransactionRecord) {
         use TransactionType::*;
-        match r.tx_type {
+        // Operations return errors in case handling preferred in the future
+        let result = match r.tx_type {
             Deposit => self.deposit(r),
             Withdrawal => self.withdrawal(r),
             Dispute => self.dispute(r),
             Resolve => self.resolve(r),
             Chargeback => self.chargeback(r),
-        }
+        };
     }
 
     fn fold_transaction(mut self, r: TransactionRecord) -> Self {
@@ -71,24 +82,74 @@ impl Ledger {
         self
     }
 
-    fn deposit(&mut self, r: TransactionRecord) {
-        println!("{:#?}", r);
+    fn deposit(&mut self, r: TransactionRecord) -> Result<(), Box<dyn Error>> {
+        // Assume empty deposits are okay for opening new acocunt
+        let amount = r.amount.unwrap_or(0.0);
+        // Get or init account
+        let acnt = match self.accounts.get_mut(&r.client_id) {
+            Some(acnt) => acnt,
+            None => {
+                let mut acnt = Account::new(r.client_id);
+                self.accounts.insert(r.client_id, acnt);
+                // Insert doesn't fail, we can unwrap safely
+                self.accounts.get_mut(&r.client_id).unwrap()
+            }
+        };
+
+        // update account
+        acnt.total += amount;
+        acnt.available += amount;
+
+        // save tx
+        self.save_tx(r)
     }
 
-    fn withdrawal(&mut self, r: TransactionRecord) {
-        println!("{:#?}", r);
+    fn save_tx(&mut self, r: TransactionRecord) -> Result<(), Box<dyn Error>> {
+        match self.txs.insert(r.tx_id, r) {
+            Some(_) => Err(From::from("transaction error: multiple tx's with same id")),
+            None => Ok(()),
+        }
     }
 
-    fn dispute(&mut self, r: TransactionRecord) {
-        println!("{:#?}", r);
+    fn withdrawal(&mut self, r: TransactionRecord) -> Result<(), Box<dyn Error>> {
+        // Empty withdrawal are allowed, otherwise we'd use `ok_or`
+        let amount = r.amount.unwrap_or(0.0);
+
+        // Must have an account
+        let acnt = self
+            .accounts
+            .get_mut(&r.client_id)
+            .ok_or::<Box<dyn Error>>(From::from(
+                "transaction error: withdrawal from non-existent client id",
+            ))?;
+
+        // Must have enough to withdraw
+        if acnt.available < amount {
+            return Err(From::from(
+                "transaction error: withdrawl amount greater than available",
+            ));
+        }
+
+        // update account
+        acnt.available -= amount;
+        acnt.total -= amount;
+
+        self.save_tx(r)
     }
 
-    fn resolve(&mut self, r: TransactionRecord) {
+    fn dispute(&mut self, r: TransactionRecord) -> Result<(), Box<dyn Error>> {
         println!("{:#?}", r);
+        Ok(())
     }
 
-    fn chargeback(&mut self, r: TransactionRecord) {
+    fn resolve(&mut self, r: TransactionRecord) -> Result<(), Box<dyn Error>> {
         println!("{:#?}", r);
+        Ok(())
+    }
+
+    fn chargeback(&mut self, r: TransactionRecord) -> Result<(), Box<dyn Error>> {
+        println!("{:#?}", r);
+        Ok(())
     }
 }
 
