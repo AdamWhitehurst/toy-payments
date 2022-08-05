@@ -38,7 +38,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         .from_reader(file);
     rdr
         .deserialize()
-        .for_each(parse_record_result);
+        .for_each(parse_result);
     Ok(())
 }
 
@@ -51,7 +51,16 @@ fn get_first_arg() -> Result<OsString, Box<dyn Error>> {
     }
 }
 
-fn parse_record_result(r: Result<TransactionRecord, csv::Error>) {
+fn parse_result(r: Result<TransactionRecord, csv::Error>) {
+    match r {
+        Ok(tx_r) => parse_record(tx_r),
+        Err(_) => {
+            // Error handling would happen here
+        }
+    }
+}
+
+fn parse_record(r: TransactionRecord) {
     println!("{:#?}", r);
 }
 
