@@ -10,10 +10,12 @@ withdrawal, 2, 5, 2.0
 withdrawal, 3, 10, 99.99
 withdrawal, 3, 11, 9.99
 resolve, 1, 9,
-resolve 1, 4,
-deposit 4, 20, 1.0
-deposit 4, 21, 1.0
+resolve, 1, 4,
+deposit, 4, 20, 1.0
+deposit, 4, 21, 1.0
 dispute, 4, 21,
 resolve, 4, 21,
-chargeback 4, 21,
-
+deposit, 5, 22, 1.0
+deposit, 5, 23, 1.0
+dispute, 5, 23,
+chargeback, 5, 23,
