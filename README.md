@@ -2,7 +2,7 @@
 
 ## Overview
 
-A toy project that maintains a ledger of account (like a bank's ledger). Takes a csv file path argument, processes the rows as transactions into the Ledger, then outputs the final state of the accounts. Invalid csv rows are ignored.
+A toy project that maintains a ledger of account (like a bank's ledger). Takes a csv file path argument, processes the rows as transactions into the Ledger, then outputs the final state of the accounts. Invalid csv rows are ignored. Errors that occur from processing are currently ignored, but can be printed for useful messages.
 
 ## Usage
 
